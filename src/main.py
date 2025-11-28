@@ -2,6 +2,7 @@ import pygame
 from sys import exit
 from random import randint, choice
 import puntuacion 
+import clima_api
 
 class Farah(pygame.sprite.Sprite):
     def __init__(self):
@@ -136,6 +137,14 @@ test_font = pygame.font.Font('font/Pixeltype.ttf', 50)
 game_active = False
 start_time = 0
 score = 0
+
+#Lluvia
+lluvia_drops=[]
+for i in range(100):
+    x_pos=randint(0, 800)
+    y_pos=randint(0,400)
+    lluvia_drops.append([x_pos, y_pos])
+
 high_score = puntuacion.cargar_high_score() ###Cargamos el high score
 
 bg_music = pygame.mixer.Sound('audio/VALEDATION.mp3')
@@ -147,7 +156,33 @@ farah.add(Farah())
 
 obstacle_group = pygame.sprite.Group()
 
-sky_surface = pygame.image.load('graphics/Sky.png').convert()
+#Clima
+print("Cargando datos del clima...")
+info_clima = clima_api.obtener_datos_clima() # Llamamos a tu función
+
+# Cargamos las dos imágenes posibles
+fondo_dia = pygame.image.load('graphics/Sky.png').convert()
+# Asegúrate de tener esta imagen o el juego fallará:
+try:
+    fondo_noche_original = pygame.image.load('graphics/Sky_night.png').convert()
+    fondo_noche = pygame.transform.scale(fondo_noche_original, (800, 400))
+except FileNotFoundError:
+    print("No encontré Sky_night.png, usando Sky.png por defecto")
+    fondo_noche = fondo_dia
+
+# Decidimos cuál usar según la API
+if info_clima['dia']:
+    print("Es de día -> Poniendo sol")
+    sky_surface = fondo_dia
+else:
+    print("Es de noche  -> Poniendo luna")
+    sky_surface = fondo_noche
+
+esta_lloviendo = False
+if info_clima['tipo'] == 'Rain' or info_clima['tipo'] == 'Drizzle' or info_clima['tipo'] == 'Thunderstorm':
+    esta_lloviendo = True
+else:
+    print("No está lloviendo")
 
 # Obstacle surfaces (Snail, Fly, Libro code kept same as original...)
 snail_frame_1 = pygame.image.load('graphics/snail/snail1.png').convert_alpha()
@@ -243,6 +278,15 @@ while True:
 
     if game_active:
         screen.blit(sky_surface,(0,0))
+        if esta_lloviendo:
+            for drop in lluvia_drops:
+                drop[1] += 5
+                if drop[1] > 400:
+                    drop[1] = -10
+                    drop[0] = randint(0, 800)
+                pygame.draw.line(screen, (170, 190, 255), (drop[0], drop[1]), (drop[0], drop[1]+15), 2)
+
+
         score = display_score()
         
         farah.draw(screen)
